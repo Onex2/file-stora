@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Storage 10GB</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --form-bg: #2d2d2d;
+            --accent-color: #4CAF50;
+            --hover-color: #45a049;
+            --error-color: #ff4444;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .auth-form {
+            background: var(--form-bg);
+            border-radius: 10px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            margin: auto;
+        }
+
+        .container {
+            display: none;
+            width: 90%;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding-bottom: 3rem;
+        }
+
+        input {
+            background: #3d3d3d;
+            color: var(--text-color);
+            border: 1px solid #4d4d4d;
+            border-radius: 5px;
+            padding: 12px;
+            margin: 0.8rem 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        button:hover {
+            background: var(--hover-color);
+        }
+
+        .file-item {
+            background: #2d2d2d;
+            padding: 1.2rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .form-switch {
+            color: var(--accent-color);
+            cursor: pointer;
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.9em;
+        }
+
+        .progress-bar {
+            background: #3d3d3d;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 1.5rem 0;
+        }
+
+        .progress {
+            height: 100%;
+            background: var(--accent-color);
+            transition: width 0.3s ease;
+        }
+
+        .warning {
+            background: var(--error-color);
+            color: white;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1.5rem 0;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 1rem;
+            left: 1rem;
+            color: #666;
+            font-size: 0.8em;
+            opacity: 0.7;
+        }
+
+        #fileList {
+            margin-bottom: 4rem;
+        }
+
+        h2 {
+            text-align: center;
+            margin: 0 0 1.5rem 0;
+            color: var(--accent-color);
+        }
+
+        small {
+            color: #888;
+            display: block;
+            margin-top: 0.5rem;
+        }
+
+        .file-actions {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .file-actions button {
+            margin: 0;
+            padding: 8px 12px;
+            width: auto;
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Форма регистрации -->
+    <div class="auth-form" id="registerForm">
+        <h2>Регистрация</h2>
+        <input type="text" id="regUsername" placeholder="Логин">
+        <input type="password" id="regPassword" placeholder="Пароль">
+        <input type="password" id="regConfirm" placeholder="Повторите пароль">
+        <button onclick="register()">Зарегистрироваться</button>
+        <p class="form-switch" onclick="showLogin()">Уже есть аккаунт? Войти</p>
+        <p id="regError" style="color: var(--error-color); text-align: center; margin-top: 1rem;"></p>
+    </div>
+
+    <!-- Форма входа -->
+    <div class="auth-form" id="loginForm" style="display: none;">
+        <h2>Вход</h2>
+        <input type="text" id="loginUsername" placeholder="Логин">
+        <input type="password" id="loginPassword" placeholder="Пароль">
+        <button onclick="performLogin()">Войти</button>
+        <p class="form-switch" onclick="showRegister()">Нет аккаунта? Зарегистрироваться</p>
+        <p id="loginError" style="color: var(--error-color); text-align: center; margin-top: 1rem;"></p>
+    </div>
+
+    <!-- Основной интерфейс -->
+    <div class="container" id="container">
+        <div class="warning">
+            Внимание: Максимальный размер файла - 10GB. Требуется современный браузер.
+        </div>
+
+        <h2>Защищенное хранилище</h2>
+
+        <!-- Загрузка файлов -->
+        <div style="margin: 1.5rem 0;">
+            <input type="file" id="fileInput">
+            <button onclick="uploadFile()">Загрузить файл</button>
+            <div class="progress-bar" id="progressBar" style="display: none;">
+                <div class="progress" id="progress"></div>
+            </div>
+            <p id="fileError" style="color: var(--error-color); margin-top: 1rem;"></p>
+        </div>
+
+        <!-- Список файлов -->
+        <div id="fileList"></div>
+
+        <button onclick="logout()" style="margin-top: 2rem;">Выйти из системы</button>
+    </div>
+
+    <div class="footer">
+        powered by Danijar Sabirzjanov
+    </div>
+
+    <script>
+        const MAX_FILE_SIZE = 10 * 1024 * 1024 * 1024; // 10GB
+        const CHUNK_SIZE = 1024 * 1024; // 1MB
+        const ITERATIONS = 100000;
+        let currentUser = null;
+        let db = null;
+
+        // Функции переключения форм
+        function showLogin() {
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+            clearErrors();
+        }
+
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            clearErrors();
+        }
+
+        function clearErrors() {
+            document.getElementById('regError').textContent = '';
+            document.getElementById('loginError').textContent = '';
+            document.getElementById('fileError').textContent = '';
+        }
+
+        // Инициализация IndexedDB
+        async function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('SecureStorage10GB', 3);
+
+                request.onupgradeneeded = (e) => {
+                    db = e.target.result;
+                    if (!db.objectStoreNames.contains('files')) {
+                        db.createObjectStore('files', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('chunks')) {
+                        const chunksStore = db.createObjectStore('chunks', {
+                            keyPath: ['fileId', 'chunkIndex']
+                        });
+                        chunksStore.createIndex('byFile', 'fileId');
+                    }
+                };
+
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve();
+                };
+
+                request.onerror = (e) => reject('Ошибка базы данных');
+            });
+        }
+
+        async function checkSession() {
+            await initDB();
+            const loggedIn = sessionStorage.getItem('loggedIn');
+            if (loggedIn) {
+                currentUser = loggedIn;
+                showContent();
+                loadFileList();
+            }
+        }
+
+        // Функции аутентификации
+        function register() {
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirm = document.getElementById('regConfirm').value;
+
+            if (!username || !password) return showError('regError', 'Заполните все поля');
+            if (password !== confirm) return showError('regError', 'Пароли не совпадают');
+            if (password.length < 8) return showError('regError', 'Пароль должен быть не менее 8 символов');
+
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            if (users[username]) return showError('regError', 'Логин уже занят');
+
+            const salt = CryptoJS.lib.WordArray.random(128/8).toString();
+            const key = CryptoJS.PBKDF2(password, salt, {
+                keySize: 256/32,
+                iterations: ITERATIONS
+            });
+
+            users[username] = { salt, key: key.toString(), iterations: ITERATIONS };
+            localStorage.setItem('users', JSON.stringify(users));
+
+            currentUser = username;
+            startSession();
+        }
+
+        async function performLogin() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const users = JSON.parse(localStorage.getItem('users') || '{}');
+                const user = users[username];
+
+                if (!user) {
+                    showError('loginError', 'Пользователь не найден');
+                    return;
+                }
+
+                const key = CryptoJS.PBKDF2(password, user.salt, {
+                    keySize: 256/32,
+                    iterations: user.iterations
+                });
+
+                if (key.toString() === user.key) {
+                    await startSession(username);
+                    showContent();
+                    loadFileList();
+                } else {
+                    showError('loginError', 'Неверный пароль');
+                }
+            } catch (e) {
+                console.error('Login error:', e);
+                showError('loginError', 'Ошибка входа');
+            }
+        }
+
+        async function startSession(username) {
+            return new Promise(resolve => {
+                sessionStorage.setItem('loggedIn', username);
+                currentUser = username;
+                resolve();
+            });
+        }
+
+        // Работа с файлами
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) return showError('fileError', 'Выберите файл');
+            if (file.size > MAX_FILE_SIZE) return showError('fileError', 'Файл слишком большой');
+
+            showProgress(true);
+
+            try {
+                const fileId = CryptoJS.lib.WordArray.random(16).toString();
+                const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+                await saveFileMetadata(fileId, file, totalChunks);
+
+                const reader = file.stream().getReader();
+                let chunkIndex = 0;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const encryptedChunk = await encryptChunk(value);
+                    await saveChunk(fileId, chunkIndex, encryptedChunk);
+
+                    chunkIndex++;
+                    updateProgress((chunkIndex / totalChunks) * 100);
+                }
+
+                loadFileList();
+                showError('fileError', 'Файл успешно загружен!');
+            } catch (e) {
+                console.error('Upload error:', e);
+                showError('fileError', 'Ошибка загрузки файла');
+            } finally {
+                showProgress(false);
+                fileInput.value = '';
+            }
+        }
+
+        async function downloadFile(fileId) {
+            try {
+                const password = document.getElementById('loginPassword').value;
+                const metadata = await getFileMetadata(fileId);
+
+                if (!metadata) throw new Error('Файл не найден');
+
+                const chunks = [];
+                for (let i = 0; i < metadata.chunks; i++) {
+                    const chunk = await getChunk(fileId, i);
+                    const decrypted = CryptoJS.AES.decrypt(chunk.data, password);
+                    chunks.push(wordArrayToBuffer(decrypted));
+                }
+
+                const blob = new Blob(chunks, { type: metadata.type });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = metadata.name;
+                link.click();
+
+                setTimeout(() => URL.revokeObjectURL(link.href), 100);
+            } catch (e) {
+                console.error('Download error:', e);
+                showError('fileError', 'Ошибка скачивания файла');
+            }
+        }
+
+        async function deleteFile(fileId) {
+            try {
+                const tx = db.transaction(['files', 'chunks'], 'readwrite');
+
+                // Удаление метаданных
+                tx.objectStore('files').delete(fileId);
+
+                // Удаление чанков через индекс
+                const chunksStore = tx.objectStore('chunks');
+                const index = chunksStore.index('byFile');
+                const range = IDBKeyRange.only(fileId);
+                const request = index.openCursor(range);
+
+                request.onsuccess = (e) => {
+                    const cursor = e.target.result;
+                    if (cursor) {
+                        chunksStore.delete(cursor.primaryKey);
+                        cursor.continue();
+                    }
+                };
+
+                await new Promise(resolve => tx.oncomplete = resolve);
+                loadFileList();
+                showError('fileError', 'Файл успешно удалён!');
+            } catch (e) {
+                console.error('Delete error:', e);
+                showError('fileError', 'Ошибка удаления файла');
+            }
+        }
+
+        // Вспомогательные функции
+        function showContent() {
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('container').style.display = 'block';
+        }
+
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            setTimeout(() => element.textContent = '', 3000);
+        }
+
+        async function saveFileMetadata(fileId, file, totalChunks) {
+            const metadata = {
+                id: fileId,
+                userId: currentUser,
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                chunks: totalChunks,
+                timestamp: Date.now()
+            };
+
+            const tx = db.transaction('files', 'readwrite');
+            tx.objectStore('files').put(metadata);
+            return new Promise(resolve => tx.oncomplete = resolve);
+        }
+
+        async function saveChunk(fileId, chunkIndex, data) {
+            const tx = db.transaction('chunks', 'readwrite');
+            tx.objectStore('chunks').put({
+                fileId,
+                chunkIndex,
+                data
+            });
+            return new Promise(resolve => tx.oncomplete = resolve);
+        }
+
+        async function loadFileList() {
+            try {
+                const tx = db.transaction('files', 'readonly');
+                const store = tx.objectStore('files');
+                const request = store.getAll();
+
+                const files = await new Promise((resolve, reject) => {
+                    request.onsuccess = () => resolve(request.result || []);
+                    request.onerror = () => reject(request.error);
+                });
+
+                if (!Array.isArray(files)) {
+                    throw new Error('Некорректный формат данных файлов');
+                }
+
+                const userFiles = files.filter(f => f.userId === currentUser);
+                renderFileList(userFiles);
+            } catch (e) {
+                console.error('File list load error:', e);
+                showError('fileError', 'Ошибка загрузки списка файлов');
+            }
+        }
+
+        function renderFileList(files) {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = files.map(file => `
+                <div class="file-item">
+                    <div>📁 ${file.name} (${formatSize(file.size)})</div>
+                    <small>Загружен: ${new Date(file.timestamp).toLocaleString()}</small>
+                    <div class="file-actions">
+                        <button onclick="downloadFile('${file.id}')">Скачать</button>
+                        <button onclick="deleteFile('${file.id}')">Удалить</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function formatSize(bytes) {
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+
+            return `${size.toFixed(2)} ${units[unitIndex]}`;
+        }
+
+        function wordArrayToBuffer(wordArray) {
+            const buffer = new Uint8Array(wordArray.sigBytes);
+            for (let i = 0; i < wordArray.sigBytes; i++) {
+                buffer[i] = (wordArray.words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+            }
+            return buffer;
+        }
+
+        async function encryptChunk(chunk) {
+            const password = document.getElementById('loginPassword').value;
+            return CryptoJS.AES.encrypt(
+                CryptoJS.lib.WordArray.create(chunk),
+                password
+            ).toString();
+        }
+
+        async function getFileMetadata(fileId) {
+            const tx = db.transaction('files', 'readonly');
+            const store = tx.objectStore('files');
+            return new Promise(resolve => {
+                const request = store.get(fileId);
+                request.onsuccess = e => resolve(e.target.result);
+            });
+        }
+
+        async function getChunk(fileId, chunkIndex) {
+            const tx = db.transaction('chunks', 'readonly');
+            const store = tx.objectStore('chunks');
+            return new Promise(resolve => {
+                const request = store.get([fileId, chunkIndex]);
+                request.onsuccess = e => resolve(e.target.result);
+            });
+        }
+
+        function showProgress(show) {
+            document.getElementById('progressBar').style.display = show ? 'block' : 'none';
+            if (!show) updateProgress(0);
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progress').style.width = percent + '%';
+        }
+
+        function logout() {
+            sessionStorage.removeItem('loggedIn');
+            currentUser = null;
+            location.reload();
+        }
+
+        // Обработчики событий
+        document.getElementById('loginPassword').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performLogin();
+        });
+
+        // Инициализация
+        checkSession();
+    </script>
+</body>
+</html>
